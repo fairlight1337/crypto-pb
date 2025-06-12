@@ -7,6 +7,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/models"
 	"github.com/pocketbase/pocketbase/models/schema"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 func EnsureCollections(app *pocketbase.PocketBase) error {
@@ -28,28 +29,40 @@ func ensureCryptowallets(app *pocketbase.PocketBase) error {
 	log.Println("Creating collection: cryptowallets")
 
 	schema_json := `[{
-		"name": "address",
-		"type": "text",
-		"required": true
-	},{
-		"name": "currency",
-		"type": "select",
-		"required": true,
-		"options": { "maxSelect": 1, "values": ["BTC", "ETH"] }
-	},{
-		"name": "label",
-		"type": "text"
-	}]`
+                "name": "address",
+                "type": "text",
+                "required": true
+        },{
+                "name": "currency",
+                "type": "select",
+                "required": true,
+                "options": { "maxSelect": 1, "values": ["BTC", "ETH"] }
+        },{
+                "name": "label",
+                "type": "text"
+        },{
+                "name": "user",
+                "type": "relation",
+                "required": true,
+                "options": { "collectionId": "users", "maxSelect": 1 }
+        }]`
 
 	var fields schema.Schema
 	if err := json.Unmarshal([]byte(schema_json), &fields); err != nil {
 		return err
 	}
 
+	rule := "user = @request.auth.id"
+
 	coll := &models.Collection{
-		Name:   "cryptowallets",
-		Type:   models.CollectionTypeBase,
-		Schema: fields,
+		Name:       "cryptowallets",
+		Type:       models.CollectionTypeBase,
+		Schema:     fields,
+		ListRule:   types.Pointer(rule),
+		ViewRule:   types.Pointer(rule),
+		CreateRule: types.Pointer(rule),
+		UpdateRule: types.Pointer(rule),
+		DeleteRule: types.Pointer(rule),
 	}
 
 	return app.Dao().SaveCollection(coll)
@@ -92,10 +105,17 @@ func ensureCryptotransactions(app *pocketbase.PocketBase) error {
 		return err
 	}
 
+	rule := "wallet.user = @request.auth.id"
+
 	coll := &models.Collection{
-		Name:   "cryptotransactions",
-		Type:   models.CollectionTypeBase,
-		Schema: fields,
+		Name:       "cryptotransactions",
+		Type:       models.CollectionTypeBase,
+		Schema:     fields,
+		ListRule:   types.Pointer(rule),
+		ViewRule:   types.Pointer(rule),
+		CreateRule: types.Pointer(rule),
+		UpdateRule: types.Pointer(rule),
+		DeleteRule: types.Pointer(rule),
 	}
 
 	return app.Dao().SaveCollection(coll)
