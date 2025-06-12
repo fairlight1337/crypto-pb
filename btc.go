@@ -12,12 +12,14 @@ import (
 	"github.com/pocketbase/pocketbase/models"
 )
 
-// Global: switch between mainnet and testnet here
-const useTestnet = true
+// Network configuration is set at runtime
+var (
+	useTestnet         bool
+	blockstreamBaseUrl string
+)
 
-var blockstreamBaseUrl string
-
-func init() {
+func configureNetwork(testnet bool) {
+	useTestnet = testnet
 	if useTestnet {
 		blockstreamBaseUrl = "https://blockstream.info/testnet/api"
 	} else {
@@ -28,9 +30,12 @@ func init() {
 // Transaction response from Blockstream API (partial)
 type Tx struct {
 	TxID   string `json:"txid"`
-	Height int    `json:"status.height"`
-	Time   int64  `json:"status.block_time"`
-	Vin    []struct {
+	Status struct {
+		BlockHeight int   `json:"block_height"`
+		BlockTime   int64 `json:"block_time"`
+		Confirmed   bool  `json:"confirmed"`
+	} `json:"status"`
+	Vin []struct {
 		Prevout struct {
 			ScriptpubkeyAddress string `json:"scriptpubkey_address"`
 			Value               int64  `json:"value"`
@@ -43,7 +48,7 @@ type Tx struct {
 }
 
 // Entry point for scanning a single BTC address
-func ScanBTCAddress(app *pocketbase.PocketBase, wallet *models.Record) {
+func ScanBTCAddress(app *pocketbase.PocketBase, wallet *models.Record, currentHeight int) {
 	address := wallet.GetString("address")
 
 	url := fmt.Sprintf("%s/address/%s/txs", blockstreamBaseUrl, address)
@@ -67,19 +72,18 @@ func ScanBTCAddress(app *pocketbase.PocketBase, wallet *models.Record) {
 	}
 
 	for _, tx := range txs {
-		processTransaction(app, wallet, address, tx)
+		processTransaction(app, wallet, address, tx, currentHeight)
 	}
+
+	updateWalletBalance(app, wallet)
 }
 
 // Process single transaction & insert into PocketBase if not present
-func processTransaction(app *pocketbase.PocketBase, wallet *models.Record, address string, tx Tx) {
+func processTransaction(app *pocketbase.PocketBase, wallet *models.Record, address string, tx Tx, currentHeight int) {
 	txid := tx.TxID
 
-	// Deduplication: check if already exists
+	// Check if tx already exists so we can update confirmations
 	existing, err := app.Dao().FindFirstRecordByFilter("cryptotransactions", "txid = {:txid}", map[string]any{"txid": txid})
-	if err == nil && existing != nil {
-		return
-	}
 
 	direction := "incoming"
 	foundAsOutput := false
@@ -102,6 +106,33 @@ func processTransaction(app *pocketbase.PocketBase, wallet *models.Record, addre
 
 	amount := float64(amountSats) / 1e8
 
+	confirmations := 0
+	if tx.Status.Confirmed {
+		confirmations = currentHeight - tx.Status.BlockHeight + 1
+		if confirmations < 0 {
+			confirmations = 0
+		}
+	}
+	timestamp := time.Unix(tx.Status.BlockTime, 0)
+
+	if err == nil && existing != nil {
+		updated := false
+		if existing.GetInt("confirmations") != confirmations {
+			existing.Set("confirmations", confirmations)
+			updated = true
+		}
+		if existing.GetDateTime("timestamp").IsZero() && tx.Status.BlockTime != 0 {
+			existing.Set("timestamp", timestamp)
+			updated = true
+		}
+		if updated {
+			if err := app.Dao().SaveRecord(existing); err != nil {
+				log.Printf("Failed to update tx %s: %v", txid, err)
+			}
+		}
+		return
+	}
+
 	collection, err := app.Dao().FindCollectionByNameOrId("cryptotransactions")
 	if err != nil {
 		log.Printf("Failed to load collection: %v", err)
@@ -112,13 +143,69 @@ func processTransaction(app *pocketbase.PocketBase, wallet *models.Record, addre
 	newTx.Set("wallet", wallet.Id)
 	newTx.Set("txid", txid)
 	newTx.Set("amount", amount)
-	newTx.Set("timestamp", time.Unix(tx.Time, 0))
+	newTx.Set("timestamp", timestamp)
 	newTx.Set("direction", direction)
-	newTx.Set("confirmations", 0)
+	newTx.Set("confirmations", confirmations)
 
 	if err := app.Dao().SaveRecord(newTx); err != nil {
 		log.Printf("Failed to insert tx %s: %v", txid, err)
 	} else {
 		log.Printf("Inserted new transaction: %s", txid)
 	}
+}
+
+// updateWalletBalance fetches the current wallet balance and saves it
+func updateWalletBalance(app *pocketbase.PocketBase, wallet *models.Record) {
+	address := wallet.GetString("address")
+	url := fmt.Sprintf("%s/address/%s", blockstreamBaseUrl, address)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("Failed to fetch balance for %s: %v", address, err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Unexpected response for balance: %s", body)
+		return
+	}
+
+	var data struct {
+		ChainStats struct {
+			FundedTxoSum int64 `json:"funded_txo_sum"`
+			SpentTxoSum  int64 `json:"spent_txo_sum"`
+		} `json:"chain_stats"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		log.Printf("Failed to decode balance for %s: %v", address, err)
+		return
+	}
+
+	balance := float64(data.ChainStats.FundedTxoSum-data.ChainStats.SpentTxoSum) / 1e8
+	if wallet.GetFloat("balance") == balance {
+		return
+	}
+	wallet.Set("balance", balance)
+	if err := app.Dao().SaveRecord(wallet); err != nil {
+		log.Printf("Failed to update balance for %s: %v", address, err)
+	}
+}
+
+// getCurrentBlockHeight returns the tip height for the configured network
+func getCurrentBlockHeight() (int, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/blocks/tip/height", blockstreamBaseUrl))
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("unexpected response: %s", body)
+	}
+	var height int
+	if err := json.NewDecoder(resp.Body).Decode(&height); err != nil {
+		return 0, err
+	}
+	return height, nil
 }

@@ -25,6 +25,12 @@ func StartScheduler(app *pocketbase.PocketBase) {
 func scanAllWallets(app *pocketbase.PocketBase) {
 	log.Println("Starting wallet scan...")
 
+	height, err := getCurrentBlockHeight()
+	if err != nil {
+		log.Printf("Failed to fetch block height: %v", err)
+		return
+	}
+
 	records, err := app.Dao().FindRecordsByFilter(
 		"cryptowallets",
 		"1=1", // filter: mandatory non-empty filter string
@@ -45,10 +51,13 @@ func scanAllWallets(app *pocketbase.PocketBase) {
 
 		switch currency {
 		case "BTC":
-			ScanBTCAddress(app, record)
+			ScanBTCAddress(app, record, height)
 		default:
 			log.Printf("Currency %s not yet implemented", currency)
 		}
+
+		// simple throttle to avoid API rate limits
+		time.Sleep(2 * time.Second)
 	}
 
 	log.Println("Wallet scan complete.")
