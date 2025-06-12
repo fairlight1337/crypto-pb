@@ -34,6 +34,7 @@ Build and run a binary:
 
 ```bash
 go build -o crypto-pb
+# run against mainnet
 ./crypto-pb serve
 # run against testnet
 ./crypto-pb serve --testnet
@@ -50,8 +51,14 @@ The `examples/python/client.py` script demonstrates how to authenticate with the
 2. List wallets with their address and balance
 3. List all transactions for a selected wallet (amount and confirmations)
 
+List all wallets for a user:
 ```bash
-python examples/python/client.py --email user@example.com --password secret --wallet <walletId>
+python examples/python/client.py --email user@example.com --password secret
+```
+
+List all transactions for a specific wallet owned by that user:
+```bash
+python examples/python/client.py --email user@example.com --password secret --wallet <address>
 ```
 
 ## Contributing

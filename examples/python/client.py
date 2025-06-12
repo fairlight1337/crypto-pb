@@ -11,7 +11,7 @@ def main():
     args = parser.parse_args()
 
     # login
-    r = requests.post(f"{args.host}/api/users/auth-via-email", json={"email": args.email, "password": args.password})
+    r = requests.post(f"{args.host}/api/collections/users/auth-with-password", json={"identity": args.email, "password": args.password})
     r.raise_for_status()
     token = r.json()["token"]
     headers = {"Authorization": token}
@@ -22,19 +22,19 @@ def main():
     wallets = resp.json().get("items", [])
     print("Wallets:")
     for w in wallets:
-        print(f"{w['id']} - {w['address']} balance: {w.get('balance', 0)}")
+        print(f"{w['address']}, balance: {w.get('balance', 0)}")
 
     if args.wallet:
         tx_resp = requests.get(
             f"{args.host}/api/collections/cryptotransactions/records",
-            params={"filter": f"wallet='{args.wallet}'", "sort": "-timestamp"},
+            params={"filter": f"wallet.address='{args.wallet}'", "sort": "-timestamp"},
             headers=headers,
         )
         tx_resp.raise_for_status()
         print("Transactions:")
         for t in tx_resp.json().get("items", []):
             print(
-                f"{t.get('txid')} amount: {t.get('amount')} conf: {t.get('confirmations')}"
+                f"{t.get('txid')}, amount: {t.get('amount')}, conf: {t.get('confirmations')}"
             )
 
 

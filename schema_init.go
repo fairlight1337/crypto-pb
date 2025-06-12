@@ -55,7 +55,7 @@ func ensureCryptowallets(app *pocketbase.PocketBase) error {
 		return err
 	}
 
-	rule := "user = @request.auth.id"
+	rule := "owner = @request.auth.id"
 
 	coll := &models.Collection{
 		Name:       "cryptowallets",
@@ -108,7 +108,7 @@ func ensureCryptotransactions(app *pocketbase.PocketBase) error {
 		return err
 	}
 
-	rule := "wallet.user = @request.auth.id"
+	rule := "wallet.owner = @request.auth.id"
 
 	coll := &models.Collection{
 		Name:       "cryptotransactions",
