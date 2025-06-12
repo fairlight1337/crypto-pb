@@ -36,7 +36,7 @@ func ensureCryptowallets(app *pocketbase.PocketBase) error {
                 "name": "currency",
                 "type": "select",
                 "required": true,
-                "options": { "maxSelect": 1, "values": ["BTC", "ETH"] }
+                "options": { "maxSelect": 1, "values": ["BTC"] }
         },{
                 "name": "label",
                 "type": "text"
