@@ -40,6 +40,9 @@ func ensureCryptowallets(app *pocketbase.PocketBase) error {
         },{
                 "name": "label",
                 "type": "text"
+       },{
+                "name": "balance",
+                "type": "number"
         },{
                 "name": "owner",
                 "type": "relation",

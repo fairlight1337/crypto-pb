@@ -3,11 +3,14 @@ package main
 import (
 	"log"
 
+	survey "github.com/AlecAivazis/survey/v2"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 func main() {
+	askNetwork()
+
 	app := pocketbase.New()
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
@@ -30,4 +33,15 @@ func main() {
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func askNetwork() {
+	choice := "testnet"
+	prompt := &survey.Select{
+		Message: "Select BTC network:",
+		Options: []string{"testnet", "mainnet"},
+		Default: "testnet",
+	}
+	_ = survey.AskOne(prompt, &choice)
+	configureNetwork(choice == "testnet")
 }
