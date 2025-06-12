@@ -1,12 +1,30 @@
 # crypto-pb
 
-An extension to [PocketBase](https://pocketbase.io/) that automatically scans stored wallet IDs for BTC (testnet and real net) for transactions.
+crypto-pb is an extension for [PocketBase](https://pocketbase.io/) that automatically
+scans stored wallet addresses for transactions. It currently supports BTC
+(mainnet and testnet) and stores the results in PocketBase collections.
 
-This tool allows to integrate crypto transactions into your backend flow easily. It takes off the heavy lifting of finding the correct transactions for a wallet and storing them persistently.
+The goal is to integrate crypto transactions into your backend flow without the
+need to poll blockchains yourself.
 
+## PocketBase version
 
-## In the works
+The project targets **PocketBase 0.22.x** (tested with 0.22.7). Other versions may
+work but are not verified.
+
+## Status / Roadmap
 
 * Store the number of confirmations received
-* Support ETH properly
+* Proper ETH support
 * Assign users to wallets and transactions so only they can read them
+
+## Usage
+
+Build and run the application just like any PocketBase app:
+
+```bash
+go run main.go
+```
+
+The application will ensure the required collections exist and will start a
+scheduler that periodically scans all stored wallets.
