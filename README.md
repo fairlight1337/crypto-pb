@@ -7,6 +7,10 @@ scans stored wallet addresses for transactions. It currently supports BTC
 The goal is to integrate crypto transactions into your backend flow without the
 need to poll blockchains yourself.
 
+## Version
+
+Current project version: **0.1**
+
 ## PocketBase version
 
 The project targets **PocketBase 0.22.x** (tested with 0.22.7). Other versions may
@@ -31,7 +35,27 @@ Build and run a binary:
 ```bash
 go build -o crypto-pb
 ./crypto-pb serve
+# run against testnet
+./crypto-pb serve --testnet
 ```
 
-The application will ensure the required collections exist and will start a
+If `--testnet` is omitted the application uses Bitcoin mainnet. The application will ensure the required collections exist and will start a
 scheduler that periodically scans all stored wallets.
+
+## Python example
+
+The `examples/python/client.py` script demonstrates how to authenticate with the REST API and retrieve data:
+
+1. Login as a user
+2. List wallets with their address and balance
+3. List all transactions for a selected wallet (amount and confirmations)
+
+```bash
+python examples/python/client.py --email user@example.com --password secret --wallet <walletId>
+```
+
+## Contributing
+
+* **Feature requests**: please open an issue in the repository.
+* **Code contributions** are very welcome. Fork the repo and open a pull request.
+* If you find the project useful consider supporting it via GitHub's **Support** button.
