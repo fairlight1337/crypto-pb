@@ -114,7 +114,7 @@ func processTransaction(app *pocketbase.PocketBase, wallet *models.Record, addre
 	newTx.Set("amount", amount)
 	newTx.Set("timestamp", time.Unix(tx.Time, 0))
 	newTx.Set("direction", direction)
-	newTx.Set("confirmed", tx.Height > 0)
+	newTx.Set("confirmations", 0)
 
 	if err := app.Dao().SaveRecord(newTx); err != nil {
 		log.Printf("Failed to insert tx %s: %v", txid, err)

@@ -26,5 +26,12 @@ Build and run the application just like any PocketBase app:
 go run main.go
 ```
 
+Build and run a binary:
+
+```bash
+go build -o crypto-pb
+./crypto-pb serve
+```
+
 The application will ensure the required collections exist and will start a
 scheduler that periodically scans all stored wallets.

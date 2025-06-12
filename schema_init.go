@@ -41,7 +41,7 @@ func ensureCryptowallets(app *pocketbase.PocketBase) error {
                 "name": "label",
                 "type": "text"
         },{
-                "name": "user",
+                "name": "owner",
                 "type": "relation",
                 "required": true,
                 "options": { "collectionId": "users", "maxSelect": 1 }
@@ -96,8 +96,8 @@ func ensureCryptotransactions(app *pocketbase.PocketBase) error {
 		"type": "select",
 		"options": { "maxSelect": 1, "values": ["incoming", "outgoing"] }
 	},{
-		"name": "confirmed",
-		"type": "bool"
+		"name": "confirmations",
+		"type": "number"
 	}]`
 
 	var fields schema.Schema
